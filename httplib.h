@@ -16071,6 +16071,13 @@ inline void ClientImpl::stop() {
   // are not thread-safe.
   if (socket_requests_in_flight_ > 0) {
     shutdown_socket(socket_);
+#ifdef _WIN32
+    // On Windows, shutdown() does not wake a thread that waits in WSAPoll()
+    // on this socket, so cancel the pending I/O as well.
+    if (socket_.is_open()) {
+      ::CancelIoEx(reinterpret_cast<HANDLE>(socket_.sock), nullptr);
+    }
+#endif
 
     // Aside from that, we set a flag for the socket to be closed when we're
     // done.
