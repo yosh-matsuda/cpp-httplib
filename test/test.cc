@@ -3458,9 +3458,10 @@ TEST(ClientStopTest, StopEndsWaitForResponse) {
     }
     res.set_content("Hello World!", "text/plain");
   });
-  auto thread = std::thread([&]() { svr.listen(HOST, PORT); });
+  auto port = svr.bind_to_any_port(HOST);
+  auto thread = std::thread([&]() { svr.listen_after_bind(); });
 
-  Client cli(HOST, PORT);
+  Client cli(HOST, port);
   cli.set_read_timeout(std::chrono::seconds(30));
   std::future<Result> request;
 
