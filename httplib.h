@@ -6844,10 +6844,14 @@ select_read_interruptible(socket_t sock, time_t sec, time_t usec,
   while (!interrupted()) {
     auto left = std::chrono::duration_cast<std::chrono::microseconds>(
         deadline - std::chrono::steady_clock::now());
-    auto wait =
-        (std::max)((std::min)(left, slice), std::chrono::microseconds(0));
-    auto ret = select_impl(sock, POLLIN, 0, static_cast<time_t>(wait.count()));
-    if (ret != 0 || wait < slice) { return ret; }
+    auto last = left < slice;
+    // poll() takes whole milliseconds, so round the last wait up to keep it
+    // from ending before the deadline.
+    auto wait_usec = last ? (std::max)((left.count() + 999) / 1000 * 1000,
+                                       static_cast<decltype(left.count())>(0))
+                          : slice.count();
+    auto ret = select_impl(sock, POLLIN, 0, static_cast<time_t>(wait_usec));
+    if (ret != 0 || last) { return ret; }
   }
   return 0;
 }
